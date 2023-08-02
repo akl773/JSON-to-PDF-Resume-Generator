@@ -12,12 +12,35 @@ const template = require('./template')
 app.use(cors({origin: true}));
 app.use(express.json());
 
-app.post('/jsonToPdf', async (req, res) => {
-    const html = ejs.render(template, req.body);
-    const browser = await puppeteer.launch({headless: 'new'});
+
+let browser;
+
+async function initBrowser() {
+    try {
+        if (!browser) {
+            browser = await puppeteer.launch({ headless: true });
+        }
+    } catch (error) {
+        console.error('Error initializing browser:', error);
+    }
+}
+
+async function getBrowser() {
+    if (!browser) {
+        await initBrowser();
+    }
+    return browser;
+}
+
+
+async function createPDF(content) {
+    const browser = await getBrowser()
     const page = await browser.newPage();
-    await page.setContent(html, {waitUntil: 'networkidle0'});
+    await page.setContent(content, {waitUntil: 'networkidle0'});
     const pdf = await page.pdf({format: 'A4', printBackground: true, waitFor: 1000});
+    await page.close();
+    return pdf;
+}
 
 const validations = [
     check('managementCertification').isString().notEmpty(),
