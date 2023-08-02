@@ -82,12 +82,15 @@ const validations = [
     check('projects.*.rolesAndResponsibility').isString().notEmpty(),
 ];
 
-// Endpoint to generate PDF from JSON
-app.post('/jsonToPdf', validations, async (req, res) => {
+const validateJsonToPdfRequest = (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
         return res.status(400).json({errors: errors.array()});
     }
+};
+
+// Endpoint to generate PDF from JSON
+app.post('/resume/toPdf', validateJsonToPdfRequest, async (req, res) => {
     try {
         const html = ejs.render(template, req.body);
         const pdf = await createPDF(html);
