@@ -3,129 +3,101 @@ const express = require('express');
 const cors = require('cors');
 const puppeteer = require('puppeteer');
 const ejs = require('ejs');
+const {check, validationResult} = require('express-validator');
+const template = require('./template');
+
 const app = express();
 
 app.use(cors({origin: true}));
 app.use(express.json());
 
-app.post('/jsonToPdf', async (req, res) => {
-    const data = req.body;
-    const basics = data.basics
-    console.log(basics)
-    const template = `
-<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>Resume of <%= data.basics?.name %></title>
-    <style>
-      body { 
-        font-family: Arial, sans-serif;
-        color: #444;
-        margin: 0;
-        padding: 0;
-      }
-      .container {
-        margin: 0 auto;
-        max-width: 800px;
-        padding: 30px;
-      }
-      h1, h2, h3 {
-        color: #333;
-      }
-      h1 {
-        text-align: center;
-        margin-bottom: 30px;
-      }
-      .section {
-        margin-bottom: 30px;
-      }
-      .subsection {
-        margin-bottom: 10px;
-      }
-      .skills ul, .education ul {
-        list-style-type: none;
-        padding: 0;
-      }
-      .skills li, .education li {
-        margin-bottom: 10px;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <h1><%= data.basics?.name %></h1>
-      <p><%= data.basics?.label %></p>
-      <p>Email: <%= data.basics?.email %></p>
-      <p>Phone: <%= data.basics?.phone %></p>
-      <p>Website: <%= data.basics?.url %></p>
-      <p>Summary: <%= data.basics?.summary %></p>
-      <p>Location: <%= data.basics?.location?.address %>, <%= data.basics?.location?.city %>, <%= data.basics?.location?.region %>, <%= data.basics?.location?.countryCode %>, <%= data.basics?.location?.postalCode %></p>
-      
-      <div class="section skills">
-        <h2>Skills</h2>
-        <ul>
-        <% data.skills?.forEach(function(skill) { %>
-          <li>
-            <h3><%= skill.name %></h3>
-            <p>Level: <%= skill.level %></p>
-            <p>Keywords: <%= skill.keywords?.join(', ') %></p>
-          </li>
-        <% }); %>
-        </ul>
-      </div>
+let browser;
+let pagePool = [];
 
-      <div class="section education">
-        <h2>Education</h2>
-        <ul>
-        <% data.education?.forEach(function(edu) { %>
-          <li>
-            <h3><%= edu.institution %> (<%= edu.startDate %> - <%= edu.endDate %>)</h3>
-            <p>Study: <%= edu.studyType %>, <%= edu.area %></p>
-            <p>Courses: <%= edu.courses?.join(', ') %></p>
-          </li>
-        <% }); %>
-        </ul>
-      </div>
+// Initialize the Puppeteer browser instance
+async function initBrowser() {
+    try {
+        if (!browser) {
+            browser = await puppeteer.launch({
+                headless: 'new',
+                args: ['--disable-gpu', '--no-sandbox', '--disable-software-rasterizer']
+            });
+        }
+    } catch (error) {
+        console.error('Error initializing browser:', error);
+    }
+}
 
-      <div class="section awards">
-        <h2>Awards</h2>
-        <% data.awards?.forEach(function(award) { %>
-          <div class="subsection">
-            <p><%= award.title %> - <%= award.date %> - <%= award.awarder %></p>
-            <p><%= award.summary %></p>
-          </div>
-        <% }); %>
-      </div>
+async function acquirePage() {
+    if (pagePool.length > 0) return pagePool.pop();
+    const browserInstance = await getBrowser();
+    return await browserInstance.newPage();
+}
 
-      <div class="section certificates">
-        <h2>Certificates</h2>
-        <% data.certificates?.forEach(function(certificate) { %>
-          <div class="subsection">
-            <p><%= certificate.name %> - <%= certificate.date %> - <%= certificate.issuer %></p>
-            <p><a href="<%= certificate.url %>">Certificate Link</a></p>
-          </div>
-        <% }); %>
-      </div>
-    </div>
-  </body>
-</html>`;
+async function releasePage(page) {
+    await page.goto('about:blank'); // Clear the page content
+    pagePool.push(page);
+}
 
+async function getBrowser() {
+    if (!browser) {
+        await initBrowser();
+    }
+    return browser;
+}
 
-    const html = ejs.render(template, {data: data});
+// Initiate the browser upon server start
+(async function () {
+    await initBrowser();
+})();
 
-    // Convert HTML to PDF using Puppeteer
-    const browser = await puppeteer.launch();
-    const page = await browser.newPage();
-    await page.setContent(html, {waitUntil: 'networkidle0'});
+// Function to create a PDF from HTML content
+async function createPDF(content) {
+    const page = await acquirePage();
+    await page.setContent(content, {waitUntil: 'networkidle0'});
     const pdf = await page.pdf({format: 'A4', printBackground: true});
+    await releasePage(page);
+    return pdf;
+}
 
-    await browser.close();
+const validations = [
+    check('managementCertification').isString().notEmpty(),
+    check('name').isString().notEmpty(),
+    check('aboutMe').isString().notEmpty(),
+    check('keyHighlights').isArray().notEmpty(),
+    check('keyHighlights.*.name').isString().notEmpty(),
+    check('keyHighlights.*.value').isString().notEmpty(),
+    check('skills').isArray().notEmpty(),
+    check('skills.*.skillName').isString().notEmpty(),
+    check('skills.*.skillExperience').isString().notEmpty(),
+    check('skills.*.level').isString().notEmpty(),
+    check('experienceTimeline').isArray().notEmpty(),
+    check('experienceTimeline.*.position').isString().notEmpty(),
+    check('experienceTimeline.*.startDate').isString().notEmpty(),
+    check('experienceTimeline.*.endDate').isString().notEmpty(),
+    check('experienceTimeline.*.duration').isString().notEmpty(),
+    check('projects').isArray().notEmpty(),
+    check('projects.*.title').isString().notEmpty(),
+    check('projects.*.timeFrame').isString().notEmpty(),
+    check('projects.*.rolesAndResponsibility').isString().notEmpty(),
+];
 
-    // Send PDF as a binary data
-    res.set({'Content-Type': 'application/pdf', 'Content-Length': pdf.length});
-    res.send(pdf);
+// Endpoint to generate PDF from JSON
+app.post('/jsonToPdf', validations, async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+        return res.status(400).json({errors: errors.array()});
+    }
+    try {
+        const html = ejs.render(template, req.body);
+        const pdf = await createPDF(html);
+
+        res.contentType('application/pdf');
+        res.send(pdf);
+    } catch (error) {
+        console.error(error);
+        res.status(500).send(`An error occurred while generating the PDF: ${error.message}`);
+    }
 });
 
-// Specify the region for the function
 exports.api = functions.region('asia-south1').https.onRequest(app);
