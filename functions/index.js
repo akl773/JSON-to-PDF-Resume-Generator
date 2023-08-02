@@ -12,18 +12,23 @@ const template = require('./template')
 app.use(cors({origin: true}));
 app.use(express.json());
 
-
 let browser;
 
 async function initBrowser() {
     try {
         if (!browser) {
-            browser = await puppeteer.launch({ headless: true });
+            browser = await puppeteer.launch({headless: "new"});
         }
     } catch (error) {
         console.error('Error initializing browser:', error);
     }
 }
+
+(async function () {
+    await initBrowser();
+    console.timeEnd("initBrowser Time");
+    console.log("Now I'm here");
+})();
 
 async function getBrowser() {
     if (!browser) {
@@ -34,8 +39,8 @@ async function getBrowser() {
 
 
 async function createPDF(content) {
-    const browser = await getBrowser()
-    const page = await browser.newPage();
+    const browserInstance = await getBrowser()
+    const page = await browserInstance.newPage();
     await page.setContent(content, {waitUntil: 'networkidle0'});
     const pdf = await page.pdf({format: 'A4', printBackground: true, waitFor: 1000});
     await page.close();
