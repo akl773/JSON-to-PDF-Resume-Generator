@@ -6,15 +6,14 @@ const cors = require('cors');
 const puppeteer = require('puppeteer');
 const ejs = require('ejs');
 const app = express();
-const template = fs.readFileSync('resume.ejs', 'utf-8');
+const template = require('./template')
 
 app.use(cors({origin: true}));
 app.use(express.json());
 
 app.post('/jsonToPdf', async (req, res) => {
-    const data = req.body;
-    const html = ejs.render(template, {data: data});
-    const browser = await puppeteer.launch();
+    const html = ejs.render(template, req.body);
+    const browser = await puppeteer.launch({headless: 'new'});
     const page = await browser.newPage();
     await page.setContent(html, {waitUntil: 'networkidle0'});
     const pdf = await page.pdf({format: 'A4', printBackground: true, waitFor: 1000});
