@@ -1,34 +1,43 @@
 const functions = require('firebase-functions');
-const fs = require('fs');
-const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const puppeteer = require('puppeteer');
 const ejs = require('ejs');
 const {check, validationResult} = require('express-validator');
+const template = require('./template');
+
 const app = express();
-const template = require('./template')
 
 app.use(cors({origin: true}));
 app.use(express.json());
 
 let browser;
+let pagePool = [];
 
+// Initialize the Puppeteer browser instance
 async function initBrowser() {
     try {
         if (!browser) {
-            browser = await puppeteer.launch({headless: "new"});
+            browser = await puppeteer.launch({
+                headless: true,
+                args: ['--disable-gpu', '--no-sandbox', '--disable-software-rasterizer']
+            });
         }
     } catch (error) {
         console.error('Error initializing browser:', error);
     }
 }
 
-(async function () {
-    await initBrowser();
-    console.timeEnd("initBrowser Time");
-    console.log("Now I'm here");
-})();
+async function acquirePage() {
+    if (pagePool.length > 0) return pagePool.pop();
+    const browserInstance = await getBrowser();
+    return await browserInstance.newPage();
+}
+
+async function releasePage(page) {
+    await page.goto('about:blank'); // Clear the page content
+    pagePool.push(page);
+}
 
 async function getBrowser() {
     if (!browser) {
@@ -37,13 +46,18 @@ async function getBrowser() {
     return browser;
 }
 
+// Initiate the browser upon server start
+(async function () {
+    await initBrowser();
+    console.log("Browser initialized");
+})();
 
+// Function to create a PDF from HTML content
 async function createPDF(content) {
-    const browserInstance = await getBrowser()
-    const page = await browserInstance.newPage();
+    const page = await acquirePage();
     await page.setContent(content, {waitUntil: 'networkidle0'});
-    const pdf = await page.pdf({format: 'A4', printBackground: true, waitFor: 1000});
-    await page.close();
+    const pdf = await page.pdf({format: 'A4', printBackground: true});
+    await releasePage(page);
     return pdf;
 }
 
@@ -69,6 +83,7 @@ const validations = [
     check('projects.*.rolesAndResponsibility').isString().notEmpty(),
 ];
 
+// Endpoint to generate PDF from JSON
 app.post('/jsonToPdf', validations, async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -82,7 +97,7 @@ app.post('/jsonToPdf', validations, async (req, res) => {
         res.send(pdf);
     } catch (error) {
         console.error(error);
-        res.status(500).send('An error occurred while generating the PDF');
+        res.status(500).send(`An error occurred while generating the PDF: ${error.message}`);
     }
 });
 
