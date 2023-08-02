@@ -19,7 +19,7 @@ async function initBrowser() {
     try {
         if (!browser) {
             browser = await puppeteer.launch({
-                headless: true,
+                headless: 'new',
                 args: ['--disable-gpu', '--no-sandbox', '--disable-software-rasterizer']
             });
         }
@@ -49,7 +49,6 @@ async function getBrowser() {
 // Initiate the browser upon server start
 (async function () {
     await initBrowser();
-    console.log("Browser initialized");
 })();
 
 // Function to create a PDF from HTML content

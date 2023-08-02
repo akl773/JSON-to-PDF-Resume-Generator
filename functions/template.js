@@ -9,7 +9,7 @@ const template = `<!DOCTYPE html>
 
 <body style="font-family: Arial, sans-serif; margin: 40px; color: #333; background-color: #f7f7f7;">
     <header style="display: flex; align-items: center; padding: 10px; border-bottom: 2px solid #333;">
-        <a style="margin-right: 20px;"><img src="images/logo" alt="Logo" width="50"></a>
+        <a style="margin-right: 20px;"><img src="./images/logo.jpeg" alt="Logo" width="50"></a>
         <h1 style="margin: 0;"><%= name %></h1>
         <p style="margin-left: auto;"><%= managementCertification %></p>
     </header>
