@@ -1,4 +1,4 @@
-const functions = require('firebase-functions');
+const functions = require('firebase-functions/v1');
 const express = require('express');
 const cors = require('cors');
 const puppeteer = require('puppeteer');
@@ -82,11 +82,12 @@ const validations = [
     check('projects.*.rolesAndResponsibility').isString().notEmpty(),
 ];
 
-const validateJsonToPdfRequest = (req, res) => {
+const validateJsonToPdfRequest = (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.status(400).json({errors: errors.array()});
+        return res.status(400).json({ errors: errors.array() });
     }
+    next();
 };
 
 // Endpoint to generate PDF from JSON
