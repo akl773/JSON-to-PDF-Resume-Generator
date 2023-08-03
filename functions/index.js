@@ -7,7 +7,6 @@ const {check, validationResult} = require('express-validator');
 const template = require('./template');
 
 const app = express();
-
 app.use(cors({origin: true}));
 app.use(express.json());
 
@@ -82,16 +81,12 @@ const validations = [
     check('projects.*.rolesAndResponsibility').isString().notEmpty(),
 ];
 
-const validateJsonToPdfRequest = (req, res, next) => {
+// Endpoint to generate PDF from JSON
+app.post('/resume/toPdf', ...validations, async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+        return res.status(400).json({errors: errors.array()});
     }
-    next();
-};
-
-// Endpoint to generate PDF from JSON
-app.post('/resume/toPdf', validateJsonToPdfRequest, async (req, res) => {
     try {
         const html = ejs.render(template, req.body);
         const pdf = await createPDF(html);

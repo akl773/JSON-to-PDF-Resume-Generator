@@ -25,7 +25,6 @@ dist/
 # .firebaserc
 # Log files
 # Runtime data
-*.log
 pids
 *.pid
 *.seed
@@ -42,7 +41,6 @@ coverage
 # Grunt intermediate storage (http://gruntjs.com/creating-plugins#storing-task-files)
 target/
 .grunt
-dist/
 # JetBrains IDE
 # Bower dependency directory (https://bower.io/)
 .idea/
@@ -52,7 +50,6 @@ bower_components
 # Compiled binary addons (http://nodejs.org/api/addons.html)
 build/Release
 # Dependency directories
-node_modules/
 # Unit test reports
 # Optional npm cache directory
 TEST*.xml
